@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Laboratório de Infraestrutura - Onyx Tech</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f4f9;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        h1 { color: #2c3e50; }
+        .nav-buttons {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+            font-weight: bold;
+        }
+        button:hover { background-color: #2980b9; }
+        .btn-action { background-color: #2ecc71; }
+        .btn-action:hover { background-color: #27ae60; }
+        
+        .simulador {
+            display: none;
+            width: 100%;
+            max-width: 900px;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        .simulador.active { display: block; }
+        
+        .canvas {
+            height: 300px;
+            background-color: #e8f4f8;
+            border-radius: 8px;
+            position: relative;
+            overflow: hidden;
+            margin: 20px 0;
+            border: 2px dashed #bdc3c7;
+        }
+        
+        .entity {
+            position: absolute;
+            font-size: 50px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        .entity span { font-size: 14px; font-weight: bold; margin-top: 5px; }
+        
+        /* Pacotes de dados */
+        .packet {
+            position: absolute;
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            background-color: #f1c40f;
+            transition: all 1s ease-in-out;
+            opacity: 0;
+            box-shadow: 0 0 10px rgba(0,0,0,0.5);
+        }
+        .packet.green { background-color: #2ecc71; }
+        .packet.red { background-color: #e74c3c; }
+        
+        .log-box {
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: monospace;
+            text-align: left;
+            min-height: 60px;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Laboratório de Deploy - 1º Período</h1>
+    
+    <div class="nav-buttons">
+        <button onclick="showSim('sim-loopback')">1. Loopback vs Remoto</button>
+        <button onclick="showSim('sim-firewall')">2. O Segurança (Firewall)</button>
+        <button onclick="showSim('sim-deploy')">3. Fluxo de Deploy</button>
+        <button onclick="showSim('sim-fluxo')">4. O Grande Resumo</button>
+    </div>
+
+    <div id="sim-loopback" class="simulador active">
+        <h2>1. A Ilha do Localhost</h2>
+        <div class="nav-buttons">
+            <button class="btn-action" onclick="runLoopback()">Testar 127.0.0.1</button>
+            <button class="btn-action" onclick="runRemote()">Testar Remoto (Google)</button>
+        </div>
+        <div class="canvas" id="canvas-loopback">
+            <div class="entity" style="left: 10%; top: 30%;"><i class="fas fa-laptop"></i><span>Seu PC</span></div>
+            <div class="entity" style="right: 10%; top: 30%;"><i class="fas fa-cloud"></i><span>Internet</span></div>
+            <div id="pkt-loopback" class="packet" style="left: 14%; top: 40%;"></div>
+        </div>
+        <div id="log-loopback" class="log-box">Aguardando teste...</div>
+    </div>
+
+    <div id="sim-firewall" class="simulador">
+        <h2>2. O Firewall de Rede</h2>
+        <div class="nav-buttons">
+            <button class="btn-action" onclick="runFirewall()">Simular Ataque e Tráfego Real</button>
+        </div>
+        <div class="canvas" id="canvas-firewall">
+            <div class="entity" style="left: 5%; top: 30%;"><i class="fas fa-cloud"></i><span>Internet</span></div>
+            <div class="entity" id="firewall-wall" style="left: 50%; top: 20%; transform: translateX(-50%); font-size: 80px;"><i class="fas fa-shield"></i><span>Firewall (Segurança)</span></div>
+            <div class="entity" style="right: 5%; top: 30%;"><i class="fas fa-database"></i><span>VPS (Porta 80)</span></div>
+            <div id="pkt-fw-good" class="packet green" style="left: 10%; top: 35%;"></div>
+            <div id="pkt-fw-bad" class="packet red" style="left: 10%; top: 55%;"></div>
+        </div>
+        <div id="log-firewall" class="log-box">Aguardando tráfego...</div>
+    </div>
+
+    <div id="sim-deploy" class="simulador">
+        <h2>3. O Caminho do Código</h2>
+        <div class="nav-buttons">
+            <button class="btn-action" onclick="stepDeploy()">Avançar Fluxo</button>
+            <button onclick="resetDeploy()">Resetar</button>
+        </div>
+        <div class="canvas" id="canvas-deploy">
+            <div class="entity" style="left: 10%; top: 30%;"><i class="fas fa-laptop"></i><span>PC Local</span></div>
+            <div class="entity" style="left: 45%; top: 30%;"><i class="fab fa-github"></i><span>GitHub</span></div>
+            <div class="entity" style="right: 10%; top: 30%;"><i class="fas fa-database"></i><span>VPS</span></div>
+            <div id="pkt-deploy" class="packet green" style="left: 14%; top: 40%;"></div>
+        </div>
+        <div id="log-deploy" class="log-box">Passo 1: Escrevendo o código na máquina local...</div>
+    </div>
+
+    <div id="sim-fluxo" class="simulador">
+        <h2>4. A Viagem Completa do Cliente</h2>
+        <div class="nav-buttons">
+            <button class="btn-action" onclick="stepFluxo()">Próximo Passo</button>
+            <button onclick="resetFluxo()">Recomeçar</button>
+        </div>
+        <div class="canvas" id="canvas-fluxo">
+            <div class="entity" id="flx-client" style="left: 5%; top: 30%;"><i class="fas fa-mobile-alt"></i><span>Cliente</span></div>
+            <div class="entity" id="flx-dns" style="left: 25%; top: 10%; font-size: 30px;"><i class="fas fa-book"></i><span>DNS</span></div>
+            <div class="entity" id="flx-router" style="left: 45%; top: 40%; font-size: 30px;"><i class="fas fa-network-wired"></i><span>Roteadores</span></div>
+            <div class="entity" id="flx-firewall" style="left: 65%; top: 30%; font-size: 40px;"><i class="fas fa-shield"></i><span>Firewall</span></div>
+            <div class="entity" id="flx-vps" style="right: 5%; top: 30%;"><i class="fas fa-database"></i><span>VPS</span></div>
+            <div id="pkt-fluxo" class="packet" style="left: 8%; top: 40%;"></div>
+        </div>
+        <div id="log-fluxo" class="log-box">O cliente quer acessar o seu sistema. O que acontece?</div>
+    </div>
+
+    <script>
+        // Navegação das Abas
+        function showSim(id) {
+            document.querySelectorAll('.simulador').forEach(sim => sim.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+        }
+
+        // Lógica: Loopback
+        function runLoopback() {
+            const pkt = document.getElementById('pkt-loopback');
+            const log = document.getElementById('log-loopback');
+            pkt.style.transition = "all 0.5s ease-in-out";
+            pkt.style.opacity = 1;
+            pkt.style.left = "14%";
+            pkt.style.top = "40%";
+            log.innerHTML = "Disparando ping para 127.0.0.1...";
+            
+            setTimeout(() => {
+                pkt.style.top = "20%";
+                setTimeout(() => {
+                    pkt.style.left = "10%";
+                    setTimeout(() => {
+                        pkt.style.top = "40%";
+                        log.innerHTML = "Sucesso! O pacote circulou internamente na própria máquina. A internet não foi usada.";
+                        setTimeout(() => pkt.style.opacity = 0, 2000);
+                    }, 500);
+                }, 500);
+            }, 100);
+        }
+
+        function runRemote() {
+            const pkt = document.getElementById('pkt-loopback');
+            const log = document.getElementById('log-loopback');
+            pkt.style.transition = "all 1s ease-in-out";
+            pkt.style.opacity = 1;
+            pkt.style.left = "14%";
+            pkt.style.top = "40%";
+            log.innerHTML = "Disparando pacote para a Internet...";
+            
+            setTimeout(() => {
+                pkt.style.left = "80%";
+                log.innerHTML = "Pacote chegou no servidor externo. Aguardando resposta...";
+                setTimeout(() => {
+                    pkt.style.left = "14%";
+                    log.innerHTML = "Sucesso! Resposta recebida. O PC conseguiu se comunicar com o mundo.";
+                    setTimeout(() => pkt.style.opacity = 0, 2000);
+                }, 1500);
+            }, 100);
+        }
+
+        // Lógica: Firewall
+        function runFirewall() {
+            const pktGood = document.getElementById('pkt-fw-good');
+            const pktBad = document.getElementById('pkt-fw-bad');
+            const log = document.getElementById('log-firewall');
+            
+            pktGood.style.opacity = 1; pktGood.style.left = "10%";
+            pktBad.style.opacity = 1; pktBad.style.left = "10%";
+            
+            log.innerHTML = "Dois pacotes vindo da internet. Verde: Cliente (Porta 80). Vermelho: Hacker (Porta 22)...";
+            
+            setTimeout(() => {
+                pktGood.style.left = "48%";
+                pktBad.style.left = "48%";
+                
+                setTimeout(() => {
+                    log.innerHTML = "O Firewall (Segurança) barrou o hacker na porta 22! Mas deixou o cliente passar para a porta 80.";
+                    pktBad.style.opacity = 0; // Hacker morre no muro
+                    pktGood.style.left = "85%"; // Cliente chega no server
+                    
+                    setTimeout(() => {
+                        pktGood.style.opacity = 0;
+                    }, 1500);
+                }, 1000);
+            }, 100);
+        }
+
+        // Lógica: Deploy
+        let deployStep = 0;
+        function stepDeploy() {
+            const pkt = document.getElementById('pkt-deploy');
+            const log = document.getElementById('log-deploy');
+            pkt.style.opacity = 1;
+            
+            if(deployStep === 0) {
+                pkt.style.left = "48%";
+                log.innerHTML = "Passo 2: Código enviado para o repositório seguro na nuvem (GitHub).";
+                deployStep++;
+            } else if (deployStep === 1) {
+                pkt.style.left = "85%";
+                log.innerHTML = "Passo 3: A VPS puxou o código e colocou no ar. O Deploy está concluído!";
+                deployStep++;
+            }
+        }
+        function resetDeploy() {
+            deployStep = 0;
+            const pkt = document.getElementById('pkt-deploy');
+            pkt.style.transition = "none";
+            pkt.style.left = "14%";
+            pkt.style.opacity = 0;
+            setTimeout(() => pkt.style.transition = "all 1s ease-in-out", 50);
+            document.getElementById('log-deploy').innerHTML = "Passo 1: Escrevendo o código na máquina local...";
+        }
+
+        // Lógica: Fluxo Completo
+        let fluxoStep = 0;
+        function stepFluxo() {
+            const pkt = document.getElementById('pkt-fluxo');
+            const log = document.getElementById('log-fluxo');
+            pkt.style.opacity = 1;
+
+            if (fluxoStep === 0) {
+                pkt.style.left = "25%"; pkt.style.top = "15%";
+                log.innerHTML = "1. O celular pergunta ao DNS: 'Qual é o IP do sistema da Onyx Tech?'. O DNS responde com os números.";
+                fluxoStep++;
+            } else if (fluxoStep === 1) {
+                pkt.style.left = "8%"; pkt.style.top = "40%";
+                log.innerHTML = "2. Com o IP em mãos, o celular cria o pacote de dados para acessar o site.";
+                fluxoStep++;
+            } else if (fluxoStep === 2) {
+                pkt.style.left = "45%"; pkt.style.top = "45%";
+                log.innerHTML = "3. O pacote viaja pulando de roteador em roteador pela internet (Tracert).";
+                fluxoStep++;
+            } else if (fluxoStep === 3) {
+                pkt.style.left = "63%"; pkt.style.top = "40%";
+                log.innerHTML = "4. O pacote chega no Firewall. Como é um cliente querendo a porta 80, ele tem permissão para entrar.";
+                fluxoStep++;
+            } else if (fluxoStep === 4) {
+                pkt.style.left = "85%"; pkt.style.top = "40%";
+                log.innerHTML = "5. Sucesso! O pacote chega na VPS e o cliente visualiza a sua aplicação.";
+                fluxoStep++;
+            }
+        }
+        function resetFluxo() {
+            fluxoStep = 0;
+            const pkt = document.getElementById('pkt-fluxo');
+            pkt.style.transition = "none";
+            pkt.style.left = "8%"; pkt.style.top = "40%";
+            pkt.style.opacity = 0;
+            setTimeout(() => pkt.style.transition = "all 1s ease-in-out", 50);
+            document.getElementById('log-fluxo').innerHTML = "O cliente quer acessar o seu sistema. O que acontece?";
+        }
+    </script>
+</body>
+</html>
